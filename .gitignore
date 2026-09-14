@@ -7,4 +7,4 @@ coverage/
 .DS_Store
 mobile/.dart_tool/
 mobile/build/
-edge-function/deno.lock
+edge-function/deno.lockuploads/

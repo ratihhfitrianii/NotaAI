@@ -1,4 +1,5 @@
 import express, { NextFunction, Request, Response } from "express";
+import path from "path";
 import { createApiRouter } from "./routes/api";
 import { createQueue } from "./queue";
 import { MemoryExamResultRepository } from "./db/memoryRepository";
@@ -16,6 +17,9 @@ export async function startServer(opts?: {
 
   // Dashboard web (mode demo): tampilan nyata untuk tes mandiri.
   app.use(express.static("public"));
+
+  // Serve foto/dokumen yang sudah di-upload agar bisa ditampilkan di dashboard.
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
   const queue = opts?.useMemoryQueue ? createQueue() : createQueue();
   const repo = new MemoryExamResultRepository();

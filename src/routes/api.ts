@@ -8,6 +8,11 @@ import { logger } from "../lib/logger";
 import path from "path";
 import fs from "fs";
 
+/** Buat nama file aman dari nama asli. */
+function safeFileName(original: string): string {
+  return original.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+}
+
 const upload = multer({
   dest: path.join(process.cwd(), "uploads"),
   limits: { fileSize: 20 * 1024 * 1024 },
@@ -48,12 +53,10 @@ export function createApiRouter(
           imageFileName,
         } = req.body;
         if (!documentId || !imageUrl) {
-          return res
-            .status(400)
-            .json({
-              code: "VALIDATION_ERROR",
-              message: "documentId & imageUrl wajib",
-            });
+          return res.status(400).json({
+            code: "VALIDATION_ERROR",
+            message: "documentId & imageUrl wajib",
+          });
         }
 
         const task: OcrTask = {
@@ -80,21 +83,31 @@ export function createApiRouter(
       try {
         const files = req.files as Express.Multer.File[];
         if (!files || files.length === 0) {
-          return res
-            .status(400)
-            .json({
-              code: "VALIDATION_ERROR",
-              message: "Unggah minimal 1 file",
-            });
+          return res.status(400).json({
+            code: "VALIDATION_ERROR",
+            message: "Unggah minimal 1 file",
+          });
         }
 
-        const results: DigitizationResult[] = [];
+        /** Response dengan field foto tambahan untuk dashboard. */
+        type UploadResult = DigitizationResult & {
+          imageUrl: string;
+          imageFileName: string;
+        };
+        const results: UploadResult[] = [];
 
         for (const file of files) {
           const imageBase64 = fs.readFileSync(file.path).toString("base64");
+          // Simpan file secara permanen agar bisa ditampilkan di dashboard
+          const ext = path.extname(file.originalname) || ".png";
+          const savedName = `${safeFileName(file.originalname)}-${Date.now()}${ext}`;
+          const savedPath = path.join(process.cwd(), "uploads", savedName);
+          fs.copyFileSync(file.path, savedPath);
+          const imageUrl = `/uploads/${savedName}`;
+
           const task: OcrTask = {
             documentId: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            imageUrl: `upload://${file.filename}`,
+            imageUrl,
             subjectType: req.body.subject || undefined,
             imageBase64,
             imageFileName: file.originalname,
@@ -102,9 +115,13 @@ export function createApiRouter(
 
           try {
             const result = await processTask(task);
-            results.push(result);
+            // Sisipkan imageUrl ke hasil agar frontend bisa menampilkan foto
+            results.push({
+              ...result,
+              imageUrl,
+              imageFileName: file.originalname,
+            });
           } finally {
-            // Bersihkan file sementara
             fs.unlink(file.path, () => {});
           }
         }
@@ -136,12 +153,10 @@ export function createApiRouter(
       try {
         const doc = await repo.getResult(req.params.id);
         if (!doc) {
-          return res
-            .status(404)
-            .json({
-              code: "NOT_FOUND",
-              message: `Dokumen ${req.params.id} tidak ditemukan`,
-            });
+          return res.status(404).json({
+            code: "NOT_FOUND",
+            message: `Dokumen ${req.params.id} tidak ditemukan`,
+          });
         }
         res.json({ code: "OK", data: doc });
       } catch (err) {
