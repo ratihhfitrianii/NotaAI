@@ -2,7 +2,7 @@ import express, { NextFunction, Request, Response } from "express";
 import { createApiRouter } from "./routes/api";
 import { createQueue } from "./queue";
 import { MemoryExamResultRepository } from "./db/memoryRepository";
-import { ExamPipeline } from "./pipeline/examPipeline";
+import { OcrPipeline } from "./pipeline/ocrPipeline";
 import { isAppError } from "./lib/errors";
 import { logger } from "./lib/logger";
 import { env } from "./config/env";
@@ -13,11 +13,17 @@ export async function startServer(opts?: {
   const app = express();
   app.use(express.json({ limit: "10mb" }));
 
+  // Dashboard web (mode demo): tampilan nyata untuk tes mandiri.
+  app.use(express.static("public"));
+
   const queue = opts?.useMemoryQueue ? createQueue() : createQueue();
   const repo = new MemoryExamResultRepository();
-  const pipeline = new ExamPipeline(queue, repo);
+  const pipeline = new OcrPipeline(queue, repo);
 
-  app.use("/api/v1", createApiRouter(queue));
+  app.use(
+    "/api/v1",
+    createApiRouter(queue, repo, (task) => pipeline.process(task)),
+  );
 
   // Error handler terpusat — AppError → status sesuai; lainnya → 500.
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

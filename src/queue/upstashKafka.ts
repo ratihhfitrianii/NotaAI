@@ -1,5 +1,5 @@
 import { QueueProvider } from "./types";
-import { ExamTask } from "../types";
+import { OcrTask } from "../types";
 
 /**
  * Antrean Upstash Kafka via REST API (pola §4 PRD).
@@ -21,7 +21,7 @@ export class UpstashKafkaQueue implements QueueProvider {
     return `Basic ${Buffer.from(`${this.username}:${this.password}`).toString("base64")}`;
   }
 
-  async push(task: ExamTask): Promise<void> {
+  async push(task: OcrTask): Promise<void> {
     const res = await fetch(
       `${this.url}/produce/${encodeURIComponent("ocr-processing-queue")}`,
       {

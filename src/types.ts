@@ -1,6 +1,6 @@
 /**
- * Domain model NotaAI — tipe bersama seluruh pipeline (queue → worker → DB),
- * sesuai PRD NotaAI (subjek: matematika, mandarin, inggris).
+ * NotaAI OCR — Domain model untuk digitalisasi tulisan tangan.
+ * Hanya OCR: baca foto → struktur data (tanpa koreksi/nilai).
  */
 export type SubjectType = "matematika" | "mandarin" | "inggris";
 
@@ -12,51 +12,46 @@ export const SUBJECT_LABELS: Record<SubjectType, string> = {
   inggris: "Bahasa Inggris",
 };
 
-/** Tugas yang masuk antrean (di-produce oleh Supabase Edge Function; diproses worker). */
-export interface ExamTask {
+/** Tugas OCR yang masuk antrean. */
+export interface OcrTask {
   documentId: string;
-  imageUrl: string;
-  subjectType: SubjectType;
-  /** Kunci jawaban resmi — hanya untuk matematika/inggris (opsional). */
-  answerKey?: string;
-  /** Id kunci jawaban di DB, bila terdaftar. */
-  answerKeyId?: string;
-  /** Skor maksimal ujian (default 100). */
-  maxScore?: number;
-  /** Bahasa untuk koreksi bahasa Inggris. */
-  language?: "en" | "zh";
+  imageUrl: string; // URL storage / upload://filename
+  /** Subjek (opsional). Bila kosong → digitalisasi teks generik (deteksi otomatis). */
+  subjectType?: SubjectType;
+  /** Data foto asli (base64) — untuk OCR mock membaca dimensi/format. */
+  imageBase64?: string;
+  /** Nama file asli. */
+  imageFileName?: string;
 }
 
-/** Hasil OCR mentah per subjek (format output sesuai tabel §2). */
+/** Hasil OCR per subjek — format output sesuai PRD §2. */
 export type OcrResult =
-  | { subject: "matematika"; latex: string; rawText?: string }
-  | { subject: "mandarin"; hanzi: string; pinyin: string }
+  | {
+      subject: "matematika";
+      latex: string;
+      rawText?: string;
+      source?: string;
+    }
+  | {
+      subject: "mandarin";
+      hanzi: string;
+      pinyin: string;
+      source?: string;
+    }
   | {
       subject: "inggris";
       text: string;
+      source?: string;
       grammar?: { errors: string[]; suggestions: string[]; score: number };
     };
 
-/** Kunci jawaban matematika: daftar langkah dengan poin. */
-export interface MathAnswerKey {
-  steps: Array<{ expression: string; points: number }>;
-  totalPoints?: number;
-}
-
-/** Hasil koreksi akhir satu ujian. */
-export interface GradingResult {
+/** Hasil akhir digitalisasi satu dokumen. */
+export interface DigitizationResult {
   documentId: string;
   subjectType: SubjectType;
-  status: "selesai" | "perlu_review";
-  /** 0–100 (dihitung engine untuk matematika; LLM untuk mandarin/inggris bila ada). */
-  score: number;
-  /** Hasil OCR yang dipakai sebagai dasar koreksi. */
   ocr: OcrResult;
-  explanation?: string;
-  analysis?: string;
-  evaluatedAt: string;
-  warning?: string;
+  processedAt: string;
 }
 
-/** Status baris di tabel `exam_results` (Supabase). */
-export type ExamStatus = "queued" | "processing" | "completed" | "failed";
+/** Status internal (queue). */
+export type OcrStatus = "queued" | "processing" | "completed" | "failed";

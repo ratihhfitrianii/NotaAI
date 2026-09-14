@@ -10,5 +10,7 @@ export interface OcrAdapter {
   recognize(opts: {
     imageUrl: string;
     languageHint?: "zh" | "en";
+    imageBase64?: string;
+    imageFileName?: string;
   }): Promise<OcrResult>;
 }

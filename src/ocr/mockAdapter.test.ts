@@ -1,9 +1,10 @@
 import { MockOcrAdapter } from "./mockAdapter";
 import { toPinyin } from "../lib/pinyin";
+import { SubjectType } from "../types";
 
 describe("MockOcrAdapter", () => {
   it("matematika → latex", async () => {
-    const a = new MockOcrAdapter();
+    const a = new MockOcrAdapter("matematika");
     const r = await a.recognize({
       imageUrl: "https://x.com/math.jpg",
       languageHint: undefined,
@@ -12,7 +13,7 @@ describe("MockOcrAdapter", () => {
     if (r.subject === "matematika") expect(r.latex).toContain("^");
   });
   it("mandarin → hanzi + pinyin", async () => {
-    const a = new MockOcrAdapter();
+    const a = new MockOcrAdapter("mandarin");
     const r = await a.recognize({
       imageUrl: "https://x.com/zh.jpg",
       languageHint: "zh",

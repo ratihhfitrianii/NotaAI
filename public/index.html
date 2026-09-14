@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NotaAI — Digitalisasi Dokumen</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #22d3ee;
+    --success: #4ade80;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-bottom: 24px; flex-wrap: wrap;
+  }
+  h1 {
+    font-size: 26px; font-weight: 800;
+    background: linear-gradient(90deg, var(--accent), #a78bfa);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .badge {
+    background: #064e3b; color: var(--success);
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+  }
+  .sub {
+    width: 100%; color: var(--muted); font-size: 14px;
+  }
+
+  .drop {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    background: var(--card);
+  }
+  .drop:hover, .drop.drag {
+    border-color: var(--accent);
+    background: #16233c;
+  }
+  .drop .icon { font-size: 42px; }
+  .drop .msg { margin-top: 12px; font-size: 15px; color: var(--text); }
+  .drop .hint { margin-top: 6px; font-size: 13px; color: var(--muted); }
+
+  #fileInput { display: none; }
+
+  .files-preview {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px;
+  }
+  .file-chip {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 12px;
+    font-size: 13px; display: flex; align-items: center; gap: 8px;
+  }
+  .file-chip .x {
+    cursor: pointer; color: var(--muted); font-weight: 700;
+  }
+  .file-chip .x:hover { color: #f87171; }
+
+  .actions { margin-top: 16px; display: flex; gap: 10px; }
+  button.primary {
+    background: linear-gradient(90deg, var(--accent), #a78bfa);
+    color: #0f172a; border: 0; font-weight: 700;
+    padding: 12px 24px; border-radius: 12px; cursor: pointer; font-size: 15px;
+  }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--border); padding: 12px 18px;
+    border-radius: 12px; cursor: pointer; font-size: 14px;
+  }
+
+  .status { margin-top: 16px; font-size: 14px; color: var(--muted); min-height: 20px; }
+  .status.error { color: #f87171; }
+
+  .results { margin-top: 24px; display: grid; gap: 16px; }
+  .result-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 18px;
+  }
+  .result-card h3 {
+    font-size: 15px; margin-bottom: 4px; color: var(--accent);
+  }
+  .result-card .meta {
+    font-size: 12px; color: var(--muted); margin-bottom: 12px;
+  }
+  .result-card pre {
+    background: #0b1424; border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px; overflow-x: auto;
+    font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+  }
+  .result-card .subject-tag {
+    display: inline-block; background: #1e3a5f; color: #7dd3fc;
+    font-size: 11px; padding: 2px 8px; border-radius: 999px; margin-right: 6px;
+  }
+  .empty {
+    text-align: center; color: var(--muted); padding: 40px 0; font-size: 14px;
+  }
+  .recent {
+    margin-top: 32px; font-size: 14px; color: var(--muted);
+    border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>NotaAI</h1>
+    <span class="badge">● siap</span>
+    <span class="sub">Digitalisasi tulisan tangan — unggah foto/dokumen, hasil langsung tampil.</span>
+  </header>
+
+  <div class="drop" id="dropZone">
+    <div class="icon">📄</div>
+    <div class="msg">Klik untuk pilih foto / dokumen</div>
+    <div class="hint">Bisa lebih dari 1 file • PNG, JPG, PDF</div>
+  </div>
+  <input type="file" id="fileInput" multiple accept="image/*,application/pdf">
+
+  <div class="files-preview" id="filesPreview"></div>
+
+  <div class="actions">
+    <button class="primary" id="uploadBtn" disabled>Unggah &amp; Digitalisasi</button>
+    <button class="ghost" id="clearBtn">Bersihkan</button>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <div class="recent">Hasil Digitalisasi</div>
+  <div class="results" id="results"></div>
+</div>
+
+<script>
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const filesPreview = document.getElementById('filesPreview');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const status = document.getElementById('status');
+  const results = document.getElementById('results');
+
+  let selected = []; // File[]
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag');
+    addFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', e => addFiles(e.target.files));
+
+  function addFiles(list) {
+    for (const f of list) selected.push(f);
+    uploadBtn.disabled = selected.length === 0;
+    renderFiles();
+    status.textContent = `${selected.length} file dipilih — siap unggah.`;
+  }
+
+  function renderFiles() {
+    filesPreview.innerHTML = '';
+    selected.forEach((f, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'file-chip';
+      chip.innerHTML = `📎 <span>${f.name}</span> (${(f.size/1024).toFixed(0)} KB) <span class="x" data-i="${i}">✕</span>`;
+      chip.querySelector('.x').addEventListener('click', () => {
+        selected.splice(i, 1);
+        uploadBtn.disabled = selected.length === 0;
+        renderFiles();
+      });
+      filesPreview.appendChild(chip);
+    });
+  }
+
+  clearBtn.addEventListener('click', () => {
+    selected = [];
+    fileInput.value = '';
+    filesPreview.innerHTML = '';
+    uploadBtn.disabled = true;
+    status.textContent = '';
+  });
+
+  uploadBtn.addEventListener('click', async () => {
+    if (selected.length === 0) return;
+    uploadBtn.disabled = true;
+    status.textContent = '⏳ Mendigitalisasi...';
+    status.className = 'status';
+
+    const fd = new FormData();
+    for (const f of selected) fd.append('files', f);
+
+    try {
+      const res = await fetch('/api/v1/upload', { method: 'POST', body: fd });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || 'Gagal memproses');
+      status.textContent = `✅ ${body.data.length} dokumen berhasil didigitalisasi.`;
+      status.className = 'status';
+      renderResults(body.data);
+      // reset pilihan
+      selected = [];
+      fileInput.value = '';
+      filesPreview.innerHTML = '';
+      uploadBtn.disabled = true;
+    } catch (err) {
+      status.textContent = '❌ ' + err.message;
+      status.className = 'status error';
+      uploadBtn.disabled = false;
+    }
+  });
+
+  function renderResults(data) {
+    results.innerHTML = '';
+    for (const doc of data) {
+      const card = document.createElement('div');
+      card.className = 'result-card';
+
+      const subj = doc.ocr?.subject || doc.subjectType || '—';
+      const file = doc.ocr?.source ? doc.ocr.source.split(' — ')[0] : doc.documentId;
+
+      let content = '';
+      if (doc.ocr?.latex) {
+        content = doc.ocr.latex;
+      } else if (doc.ocr?.hanzi) {
+        content = `${doc.ocr.hanzi}\n\nPinyin: ${doc.ocr.pinyin}`;
+      } else if (doc.ocr?.text) {
+        content = doc.ocr.text;
+      } else {
+        content = JSON.stringify(doc.ocr, null, 2);
+      }
+
+      card.innerHTML = `
+        <h3>${file}</h3>
+        <div class="meta">
+          <span class="subject-tag">${subj}</span>
+          <span>${doc.processedAt ? new Date(doc.processedAt).toLocaleString('id-ID') : ''}</span>
+        </div>
+        <pre>${escapeHtml(content)}</pre>
+      `;
+      results.appendChild(card);
+    }
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Muat hasil lama (bila server menyimpan)
+  (async () => {
+    try {
+      const res = await fetch('/api/v1/documents');
+      const body = await res.json();
+      if (body.data?.length) renderResults(body.data);
+    } catch {}
+  })();
+</script>
+</body>
+</html>

@@ -1,58 +1,67 @@
 import { OcrAdapter } from "./types";
-import { OcrResult } from "../types";
+import { OcrResult, SubjectType } from "../types";
+import { getImageInfo } from "../lib/imageInfo";
 
 /**
- * Fallback OCR (OCR_MODE=mock) — tanpa API key, untuk uji & dev.
- * Menggunakan pinyin-pro untuk pinyin dinamis bila tersedia, atau kamus statis.
+ * Mock OCR — meniru hasil OCR dari foto asli.
+ * Tanpa subjek → mode teks generik (baca info file).
+ * Dengan subjek → simulasi per-bidang.
  */
 export class MockOcrAdapter implements OcrAdapter {
   readonly provider = "mock";
-  private readonly pinyin: (s: string) => string | null;
+  private subject?: SubjectType;
 
-  constructor() {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { pinyin } = require("pinyin-pro") as {
-        pinyin: (s: string) => string;
-      };
-      this.pinyin = pinyin;
-    } catch {
-      this.pinyin = () => null;
-    }
+  constructor(subject?: SubjectType) {
+    this.subject = subject;
   }
 
-  async recognize(opts: {
+  async recognize(input: {
     imageUrl: string;
-    languageHint?: "zh" | "en";
+    imageBase64?: string;
+    imageFileName?: string;
+    languageHint?: string;
   }): Promise<OcrResult> {
-    const url = opts.imageUrl.toLowerCase();
+    const src = input.imageBase64
+      ? `${input.imageFileName ?? "foto"} (foto asli)`
+      : input.imageUrl;
 
-    if (
-      opts.languageHint === "zh" ||
-      url.includes("mandarin") ||
-      url.includes("zh")
-    ) {
-      const hanzi = "我 是 中 国 人".trim();
-      return { subject: "mandarin", hanzi, pinyin: this.hanziToPinyin(hanzi) };
+    // Baca info foto asli bila ada
+    let meta = "";
+    if (input.imageBase64) {
+      const buf = Buffer.from(input.imageBase64, "base64");
+      const info = getImageInfo(buf);
+      if (info) {
+        meta = `${info.width}×${info.height}px ${info.format}`;
+      } else {
+        meta = `${buf.length} bytes (format tidak dikenali)`;
+      }
     }
-    if (
-      url.includes("inggris") ||
-      url.includes("english") ||
-      opts.languageHint === "en"
-    ) {
+
+    const source = meta ? `${src} — ${meta}` : src;
+
+    if (this.subject === "matematika") {
       return {
-        subject: "inggris",
-        text: "The quick brown fox jumps over the lazy dog.",
+        subject: "matematika",
+        latex: "$$x^2 + y^2 = z^2$$",
+        rawText: `[mock] x^2 + y^2 = z^2`,
+        source,
       };
     }
-    // Matematika (Mathpix fallback): ekspresi LaTeX.
-    return { subject: "matematika", latex: "x^2 + y^2 = z^2" };
-  }
 
-  private hanziToPinyin(s: string): string {
-    return s
-      .split(/\s+/)
-      .map((w) => this.pinyin?.(w) || w)
-      .join(" ");
+    if (this.subject === "mandarin") {
+      return {
+        subject: "mandarin",
+        hanzi: "我 是 中 国 人",
+        pinyin: "wǒ shì zhōng guó rén",
+        source,
+      };
+    }
+
+    // Default: teks generik — cocok untuk dokumen/corat-coret/apapun
+    return {
+      subject: "inggris",
+      text: `[digitalisasi] Dokumen ${input.imageFileName ?? input.imageUrl} — ${meta || "terbaca"}`,
+      source,
+    };
   }
 }

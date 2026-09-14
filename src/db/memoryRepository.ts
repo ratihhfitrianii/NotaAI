@@ -1,36 +1,35 @@
-import { GradingResult, ExamStatus } from "../types";
+import { DigitizationResult, OcrStatus } from "../types";
 import { ExamResultRepository } from "./repository";
 
 /** Repositori in-memory (dev/test & fallback bila Supabase tak dikonfigurasi). */
 export class MemoryExamResultRepository implements ExamResultRepository {
-  private readonly store = new Map<string, GradingResult>();
+  private readonly store = new Map<string, DigitizationResult>();
 
-  async save(result: GradingResult): Promise<void> {
+  async save(result: DigitizationResult): Promise<void> {
     this.store.set(result.documentId, result);
   }
-  async getById(
-    id: string,
-  ): Promise<{ id: string; status: ExamStatus } | null> {
+  async getById(id: string): Promise<{ id: string; status: OcrStatus } | null> {
     const r = this.store.get(id);
-    return r
-      ? {
-          id: r.documentId,
-          status: r.status === "perlu_review" ? "completed" : "completed",
-        }
-      : null;
+    return r ? { id: r.documentId, status: "completed" } : null;
+  }
+  async getResult(id: string): Promise<DigitizationResult | null> {
+    return this.store.get(id) ?? null;
+  }
+  async list(): Promise<DigitizationResult[]> {
+    return Array.from(this.store.values()).sort((a, b) =>
+      (b.processedAt || "").localeCompare(a.processedAt || ""),
+    );
   }
   async updateStatus(
     id: string,
-    status: ExamStatus,
-    payload?: Partial<GradingResult>,
+    status: OcrStatus,
+    payload?: Partial<DigitizationResult>,
   ): Promise<void> {
     const existing = this.store.get(id);
-    const merged: GradingResult = existing
+    const merged: DigitizationResult = existing
       ? { ...existing, ...payload }
-      : { ...(payload as unknown as GradingResult) };
-    // Default saat payload tak membawa result_status: mapping dari ExamStatus.
-    if (status === "completed") merged.status = "selesai";
-    else if (status === "failed") merged.status = "perlu_review";
+      : { ...(payload as unknown as DigitizationResult) };
+    // Default saat payload tak membawa status.
     this.store.set(id, merged);
   }
   async markFailed(id: string, reason: string): Promise<void> {
@@ -38,11 +37,11 @@ export class MemoryExamResultRepository implements ExamResultRepository {
     this.store.set(id, {
       documentId: id,
       subjectType: existing?.subjectType || "matematika",
-      status: "perlu_review",
-      score: 0,
-      ocr: existing?.ocr || { subject: "matematika", latex: "" },
-      evaluatedAt: new Date().toISOString(),
-      warning: reason,
+      ocr: existing?.ocr || {
+        subject: "matematika",
+        latex: "",
+      },
+      processedAt: new Date().toISOString(),
     });
   }
 }

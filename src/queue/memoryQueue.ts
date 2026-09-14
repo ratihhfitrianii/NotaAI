@@ -1,5 +1,5 @@
 import { QueueProvider } from "./types";
-import { ExamTask } from "../types";
+import { OcrTask } from "../types";
 import { logger } from "../lib/logger";
 import { EventEmitter } from "events";
 
@@ -9,19 +9,19 @@ import { EventEmitter } from "events";
  */
 export class MemoryQueue implements QueueProvider {
   readonly driver = "memory" as const;
-  private tasks: ExamTask[] = [];
+  private tasks: OcrTask[] = [];
   private readonly emitter = new EventEmitter();
 
-  async push(task: ExamTask): Promise<void> {
+  async push(task: OcrTask): Promise<void> {
     this.tasks.push(task);
     this.emitter.emit("task", task);
     logger.debug("memory-queue: push", { documentId: task.documentId });
   }
 
   async consume(
-    handler: (task: ExamTask) => Promise<void>,
+    handler: (task: OcrTask) => Promise<void>,
   ): Promise<() => Promise<void>> {
-    const listener = (task: ExamTask) => {
+    const listener = (task: OcrTask) => {
       // Jalankan async tanpa menunggu; error di-log agar consumer tetap hidup.
       void handler(task).catch((err) => {
         logger.error("memory-queue: handler error", {

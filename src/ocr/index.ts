@@ -1,5 +1,6 @@
 import { OcrAdapter } from "./types";
 import { env } from "../config/env";
+import { SubjectType } from "../types";
 import { MathpixOcrAdapter } from "./mathpixAdapter";
 import { GoogleVisionOcrAdapter } from "./googleVisionAdapter";
 import { EnglishOcrAdapter } from "./englishAdapter";
@@ -15,7 +16,7 @@ export function createOcrAdapter(
   subject: string,
   mode: "mock" | "real" = env.OCR_MODE,
 ): OcrAdapter {
-  if (mode === "mock") return new MockOcrAdapter();
+  if (mode === "mock") return new MockOcrAdapter(subject as SubjectType);
   switch (subject) {
     case "matematika":
       return new MathpixOcrAdapter();

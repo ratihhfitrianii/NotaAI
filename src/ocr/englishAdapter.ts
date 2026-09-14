@@ -3,13 +3,12 @@ import { OcrResult } from "../types";
 import { AppError } from "../lib/errors";
 import { env } from "../config/env";
 import { GoogleVisionOcrAdapter } from "./googleVisionAdapter";
-import { extractJsonBlock } from "../grading/mathGrading";
 
 /**
- * Adapter OCR Bahasa Inggris — Google Vision + Gemini 2.5 Flash (fallback: hanya Vision).
+ * Adapter OCR Bahasa Inggris — Google Vision (fallback: hanya Vision).
  * §2: "Google Vision API + Gemini 2.5 Flash → Teks digital terstruktur & Auto-Grammar".
- * Bila GEMINI_API_KEY tersedia dan dipanggil dengan `analyzeGrammar`, hasil Grammar
- * ditambahkan; bila tidak, kembalikan teks Vision apa adanya.
+ * Bila GEMINI_API_KEY tersedia dan OCR_MODE=real, bisa menambahkan grammar.
+ * Untuk mode digitalisasi murni: kembalikan teks saja.
  */
 export class EnglishOcrAdapter implements OcrAdapter {
   readonly provider = "vision+gemini";
@@ -38,8 +37,9 @@ export class EnglishOcrAdapter implements OcrAdapter {
     }
     const text = visionResult.text;
 
-    // Auto-Grammar via Gemini 2.5 Flash bila key tersedia.
-    if (this.apiKey) {
+    // Auto-Grammar via Gemini 2.5 Flash bila key tersedia & OCR_MODE=real.
+    // Untuk digitalisasi murni: kembalikan teks saja.
+    if (this.apiKey && env.OCR_MODE === "real") {
       try {
         const grammar = await this.grammarCheck(text);
         return { subject: "inggris", text, grammar };
@@ -70,9 +70,10 @@ export class EnglishOcrAdapter implements OcrAdapter {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     };
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    // Validasi JSON longgar; kebanyakan kembalikan teks apa adanya.
     try {
-      const parsed: unknown = JSON.parse(extractJsonBlock(raw));
+      const parsed: unknown = JSON.parse(
+        raw.replace(/```(?:json)?\s*([\s\S]*?)\s*```/, "$1").trim(),
+      );
       const o = parsed as Record<string, unknown>;
       const score =
         typeof o.fluency_score === "number"

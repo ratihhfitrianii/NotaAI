@@ -1,7 +1,7 @@
 import { MemoryQueue } from "./memoryQueue";
-import { ExamTask } from "../types";
+import { OcrTask } from "../types";
 
-const task: ExamTask = {
+const task: OcrTask = {
   documentId: "doc-1",
   imageUrl: "https://example.com/a.jpg",
   subjectType: "matematika",
@@ -10,7 +10,7 @@ const task: ExamTask = {
 describe("MemoryQueue", () => {
   it("push lalu consume memanggil handler", async () => {
     const q = new MemoryQueue();
-    const received: ExamTask[] = [];
+    const received: OcrTask[] = [];
     await q.consume((t) => {
       received.push(t);
       return Promise.resolve();

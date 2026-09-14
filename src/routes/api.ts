@@ -1,76 +1,167 @@
-import { Router } from "express";
-import { z } from "zod";
-import { ExamTask, SUBJECTS, SubjectType, SUBJECT_LABELS } from "../types";
+import { Router, NextFunction, Request, Response } from "express";
+import multer from "multer";
+import { OcrTask } from "../types";
 import { QueueProvider } from "../queue/types";
-import { AppError } from "../lib/errors";
+import { ExamResultRepository } from "../db/repository";
+import { DigitizationResult } from "../types";
 import { logger } from "../lib/logger";
+import path from "path";
+import fs from "fs";
 
-/**
- * API NotaAI (Cloud Run worker) — endpoint publik:
- *  - POST /api/v1/exams/submit  → terima tugas ujian, masukkan ke antrean (response < 50 ms).
- *  - GET  /api/v1/health        → health check (Cloud Run).
- * Sesuai PRD: producer ringan (Edge Function) menembak antrean; worker memproses asinkron.
- */
-const subjectEnum = z.enum(SUBJECTS as [SubjectType, ...SubjectType[]]);
-const submitSchema = z.object({
-  documentId: z.string().min(1),
-  imageUrl: z.string().url(),
-  subjectType: subjectEnum,
-  answerKey: z.string().optional(),
-  answerKeyId: z.string().optional(),
-  maxScore: z.number().int().min(1).max(1000).optional(),
-  language: z.enum(["en", "zh"]).optional(),
+const upload = multer({
+  dest: path.join(process.cwd(), "uploads"),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (
+      file.mimetype.startsWith("image/") ||
+      file.mimetype === "application/pdf"
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Tipe file tidak didukung: ${file.mimetype}`));
+    }
+  },
 });
 
-export function createApiRouter(queue: QueueProvider): Router {
+export function createApiRouter(
+  queue: QueueProvider,
+  repo: ExamResultRepository,
+  processTask: (task: OcrTask) => Promise<DigitizationResult>,
+): Router {
   const router = Router();
 
+  // ──────────────────────── Health ────────────────────
   router.get("/health", (_req, res) => {
-    res.json({
-      status: "ok",
-      queue: queue.driver,
-      ts: new Date().toISOString(),
-    });
+    res.json({ status: "ok", queue: queue.driver });
   });
 
-  router.post("/exams/submit", async (req, res, next) => {
-    try {
-      const parsed = submitSchema.safeParse(req.body);
-      if (!parsed.success) {
-        throw new AppError(
-          "VALIDATION_ERROR",
-          "Payload ujian tidak valid",
-          400,
-          parsed.error.issues,
-        );
+  // ──────────────── Submit (JSON, satu dokumen) ────────────────
+  router.post(
+    "/exams",
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const {
+          documentId,
+          imageUrl,
+          subjectType,
+          imageBase64,
+          imageFileName,
+        } = req.body;
+        if (!documentId || !imageUrl) {
+          return res
+            .status(400)
+            .json({
+              code: "VALIDATION_ERROR",
+              message: "documentId & imageUrl wajib",
+            });
+        }
+
+        const task: OcrTask = {
+          documentId,
+          imageUrl,
+          subjectType, // opsional
+          imageBase64,
+          imageFileName,
+        };
+
+        const result = await processTask(task);
+        res.status(201).json({ code: "OK", data: result });
+      } catch (err) {
+        next(err);
       }
-      const task: ExamTask = {
-        documentId: parsed.data.documentId,
-        imageUrl: parsed.data.imageUrl,
-        subjectType: parsed.data.subjectType as SubjectType,
-        answerKey: parsed.data.answerKey,
-        answerKeyId: parsed.data.answerKeyId,
-        maxScore: parsed.data.maxScore,
-        language: parsed.data.language,
-      };
-      await queue.push(task);
-      logger.info("exam submitted", {
-        documentId: task.documentId,
-        subjectType: task.subjectType,
-      });
-      res.status(202).json({
-        success: true,
-        message: `Ujian ${SUBJECT_LABELS[task.subjectType]} diterima; diproses asinkron.`,
-        data: {
-          documentId: task.documentId,
-          queue: queue.driver,
-          status: "queued",
-        },
-      });
-    } catch (err) {
-      next(err);
-    }
-  });
+    },
+  );
+
+  // ──────────────── Upload (multipart, bisa banyak file) ────────────────
+  router.post(
+    "/upload",
+    upload.array("files", 20),
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const files = req.files as Express.Multer.File[];
+        if (!files || files.length === 0) {
+          return res
+            .status(400)
+            .json({
+              code: "VALIDATION_ERROR",
+              message: "Unggah minimal 1 file",
+            });
+        }
+
+        const results: DigitizationResult[] = [];
+
+        for (const file of files) {
+          const imageBase64 = fs.readFileSync(file.path).toString("base64");
+          const task: OcrTask = {
+            documentId: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            imageUrl: `upload://${file.filename}`,
+            subjectType: req.body.subject || undefined,
+            imageBase64,
+            imageFileName: file.originalname,
+          };
+
+          try {
+            const result = await processTask(task);
+            results.push(result);
+          } finally {
+            // Bersihkan file sementara
+            fs.unlink(file.path, () => {});
+          }
+        }
+
+        res.status(201).json({ code: "OK", data: results });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // ──────────────── Daftar hasil ────────────────
+  router.get(
+    "/documents",
+    async (_req: Request, res: Response, next: NextFunction) => {
+      try {
+        const docs = await repo.list();
+        res.json({ code: "OK", data: docs });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // ──────────────── Detail satu dokumen ────────────────
+  router.get(
+    "/documents/:id",
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const doc = await repo.getResult(req.params.id);
+        if (!doc) {
+          return res
+            .status(404)
+            .json({
+              code: "NOT_FOUND",
+              message: `Dokumen ${req.params.id} tidak ditemukan`,
+            });
+        }
+        res.json({ code: "OK", data: doc });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // ──────────────── Error handler ────────────────
+  router.use(
+    (err: Error, _req: Request, res: Response, _next: NextFunction) => {
+      logger.error("request error", { err: err.message });
+      if (err.message?.startsWith("Tipe file tidak didukung")) {
+        return res
+          .status(400)
+          .json({ code: "VALIDATION_ERROR", message: err.message });
+      }
+      res.status(500).json({ code: "INTERNAL_ERROR", message: err.message });
+    },
+  );
 
   return router;
 }

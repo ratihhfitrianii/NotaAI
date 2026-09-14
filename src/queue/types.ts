@@ -1,7 +1,7 @@
 import { env } from "../config/env";
 import { AppError, errorCodes } from "../lib/errors";
 import { logger } from "../lib/logger";
-import { ExamTask } from "../types";
+import { OcrTask } from "../types";
 
 /**
  * Abstraksi antrean. Producer menulis tugas; consumer memanggil handler per pesan.
@@ -9,8 +9,8 @@ import { ExamTask } from "../types";
  */
 export interface QueueProvider {
   readonly driver: "memory" | "upstash";
-  push(task: ExamTask): Promise<void>;
+  push(task: OcrTask): Promise<void>;
   consume(
-    handler: (task: ExamTask) => Promise<void>,
+    handler: (task: OcrTask) => Promise<void>,
   ): Promise<() => Promise<void>>;
 }
