@@ -1,6 +1,7 @@
 import { OcrAdapter } from "./types";
 import { OcrResult } from "../types";
 import { GoogleGenAI } from "@google/genai";
+import sharp from "sharp";
 import { logger } from "../lib/logger";
 
 /**
@@ -45,13 +46,31 @@ export class GeminiOcrAdapter implements OcrAdapter {
       else if (ext.endsWith(".webp")) mimeType = "image/webp";
       else if (ext.endsWith(".gif")) mimeType = "image/gif";
 
+      // Optimasi: resize gambar ke max 1600px + konversi ke JPEG q80.
+      // Payload lebih kecil 5-10x → Gemini jauh lebih cepat merespons.
+      const rawBuf = Buffer.from(input.imageBase64, "base64");
+      let payload = input.imageBase64;
+      try {
+        const meta = await sharp(rawBuf).metadata();
+        if ((meta.width ?? 0) > 1600 || (meta.height ?? 0) > 1600 || meta.format !== "jpeg") {
+          const resized = await sharp(rawBuf)
+            .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+          payload = resized.toString("base64");
+          mimeType = "image/jpeg";
+        }
+      } catch {
+        // Pakai asli bila resize gagal
+      }
+
       const response = await this.genai.models.generateContent({
         model: "gemini-3.6-flash",
         contents: [
           {
             inlineData: {
               mimeType,
-              data: input.imageBase64,
+              data: payload,
             },
           },
           {

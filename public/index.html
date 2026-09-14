@@ -277,7 +277,8 @@
   uploadBtn.addEventListener('click', async () => {
     if (selected.length === 0) return;
     uploadBtn.disabled = true;
-    status.textContent = '⏳ Mendigitalisasi...';
+    const n = selected.length;
+    status.textContent = `⏳ Mendigitalisasi ${n} file...`;
     status.className = 'status';
 
     const fd = new FormData();

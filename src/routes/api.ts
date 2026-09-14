@@ -94,37 +94,33 @@ export function createApiRouter(
           imageUrl: string;
           imageFileName: string;
         };
-        const results: UploadResult[] = [];
 
-        for (const file of files) {
-          const imageBase64 = fs.readFileSync(file.path).toString("base64");
-          // Simpan file secara permanen agar bisa ditampilkan di dashboard
-          const ext = path.extname(file.originalname) || ".png";
-          const savedName = `${safeFileName(file.originalname)}-${Date.now()}${ext}`;
-          const savedPath = path.join(process.cwd(), "uploads", savedName);
-          fs.copyFileSync(file.path, savedPath);
-          const imageUrl = `/uploads/${savedName}`;
+        // Persiapkan semua file secara parallel — proses OCR bersamaan.
+        const results = await Promise.all(
+          files.map(async (file): Promise<UploadResult> => {
+            const imageBase64 = fs.readFileSync(file.path).toString("base64");
+            const ext = path.extname(file.originalname) || ".png";
+            const savedName = `${safeFileName(file.originalname)}-${Date.now()}-${Math.random().toString(36).slice(2,6)}${ext}`;
+            const savedPath = path.join(process.cwd(), "uploads", savedName);
+            fs.copyFileSync(file.path, savedPath);
+            const imageUrl = `/uploads/${savedName}`;
 
-          const task: OcrTask = {
-            documentId: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            imageUrl,
-            subjectType: req.body.subject || undefined,
-            imageBase64,
-            imageFileName: file.originalname,
-          };
-
-          try {
-            const result = await processTask(task);
-            // Sisipkan imageUrl ke hasil agar frontend bisa menampilkan foto
-            results.push({
-              ...result,
+            const task: OcrTask = {
+              documentId: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
               imageUrl,
+              subjectType: req.body.subject || undefined,
+              imageBase64,
               imageFileName: file.originalname,
-            });
-          } finally {
-            fs.unlink(file.path, () => {});
-          }
-        }
+            };
+
+            try {
+              const result = await processTask(task);
+              return { ...result, imageUrl, imageFileName: file.originalname };
+            } finally {
+              fs.unlink(file.path, () => {});
+            }
+          }),
+        );
 
         res.status(201).json({ code: "OK", data: results });
       } catch (err) {
