@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { startServer } from "./server";
 import { env } from "./config/env";
 import { logger } from "./lib/logger";

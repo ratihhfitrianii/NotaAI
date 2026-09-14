@@ -10,7 +10,7 @@ import { env } from "./config/env";
 
 export async function startServer(opts?: {
   useMemoryQueue?: boolean;
-  ocrMode?: "mock" | "tesseract" | "real";
+  ocrMode?: "mock" | "tesseract" | "gemini" | "real";
 }): Promise<{ app: express.Express; stop: () => Promise<void> }> {
   const app = express();
   app.use(express.json({ limit: "10mb" }));

@@ -16,7 +16,7 @@ export class OcrPipeline {
   constructor(
     private readonly queue: QueueProvider,
     private readonly repo: ExamResultRepository,
-    private readonly ocrMode: "mock" | "tesseract" | "real" = "tesseract",
+    private readonly ocrMode: "mock" | "tesseract" | "gemini" | "real" = "gemini",
   ) {}
 
   async start(): Promise<() => Promise<void>> {
