@@ -151,6 +151,32 @@
     font-family: system-ui, sans-serif;
   }
 
+  /* ─── Tabel hasil digitalisasi ─── */
+  .result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .result-table th, .result-table td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .result-table th {
+    background: #16233c;
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .result-table tr:nth-child(even) {
+    background: #16233c;
+  }
+  .result-table-wrap {
+    overflow-x: auto;
+  }
+
   .btn-row { margin-top: 20px; display: flex; gap: 10px; justify-content: center; }
 
   .empty {
@@ -288,9 +314,15 @@
       else if (doc.ocr?.text) text = doc.ocr.text;
       else text = JSON.stringify(doc.ocr, null, 2);
 
+      // Deteksi apakah hasil berupa tabel (Markdown | a | b |)
+      const tableHtml = tryParseMarkdownTable(text);
       const time = doc.processedAt
         ? new Date(doc.processedAt).toLocaleString('id-ID')
         : '';
+
+      const contentHtml = tableHtml
+        ? `<div class="result-table-wrap">${tableHtml}</div>`
+        : `<div class="result-text-inner">${escapeHtml(text)}</div>`;
 
       card.innerHTML = `
         <h3>${escapeHtml(fileName)}</h3>
@@ -302,12 +334,50 @@
           </div>
           <div class="result-text">
             <div class="label">Hasil Digitalisasi — ${time}</div>
-            ${escapeHtml(text)}
+            ${contentHtml}
           </div>
         </div>
       `;
       results.appendChild(card);
     }
+  }
+
+  /** Deteksi Markdown table (baris berisi |). Return HTML <table> atau null. */
+  function tryParseMarkdownTable(text) {
+    if (!text) return null;
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    // Cari baris separator |---|---|
+    let sepIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\|[\s:|-]+\|$/.test(lines[i]) && lines[i].includes('-')) { sepIdx = i; break; }
+    }
+    if (sepIdx <= 0) return null;
+    if (sepIdx + 1 >= lines.length) return null;
+    if (!lines[sepIdx - 1].startsWith('|')) return null;
+
+    const parseRow = (line) => line.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+
+    const headerCells = parseRow(lines[sepIdx - 1]);
+    const rows = [];
+    for (let i = sepIdx + 1; i < lines.length; i++) {
+      if (!lines[i].startsWith('|')) break;
+      rows.push(parseRow(lines[i]));
+    }
+    if (rows.length === 0) return null;
+
+    const esc = escapeHtml;
+    let html = `<table class="result-table"><thead><tr>`;
+    headerCells.forEach(h => { html += `<th>${esc(h)}</th>`; });
+    html += `</tr></thead><tbody>`;
+    rows.forEach(r => {
+      html += `<tr>`;
+      headerCells.forEach((_, i) => {
+        html += `<td>${esc(r[i] ?? '')}</td>`;
+      });
+      html += `</tr>`;
+    });
+    html += `</tbody></table>`;
+    return html;
   }
 
   // ─── Tombol "Unggah Baru" ───

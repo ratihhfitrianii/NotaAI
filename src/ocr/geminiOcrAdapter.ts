@@ -104,6 +104,10 @@ RULES:
 5. DOCTOR HANDWRITING / MEDICAL NOTES: read carefully even if handwriting is messy. Use context to disambiguate medical terms, drug names, dosages. Common abbreviations: mg, ml, tablets, cap, OD (once daily), BD (twice daily), TDS (three times), PRN (as needed), Sig (instructions), Dx (diagnosis), Rx (prescription), BP (blood pressure), HR (heart rate).
 6. If text is unclear or partially illegible, put [?] for unreadable parts. Do NOT guess or fabricate text.
 7. For mixed content (typed + handwritten on same page), output all of it in reading order (top to bottom, left to right).
-8. Tables: preserve column alignment using spaces.
+8. TABLES: CRITICAL — if the image contains a table/spreadsheet/grid of data, output it as a Markdown table. Format:
+   | Header 1 | Header 2 | Header 3 |
+   |----------|----------|----------|
+   | cell 1   | cell 2   | cell 3   |
+   Put the exact number of columns. Combine merged cells by repeating the value. Empty cells stay empty. If the table has no header row, use the first row as header. A table can have many rows — output ALL of them, never truncate.
 
 Output the digitized text now:`;
