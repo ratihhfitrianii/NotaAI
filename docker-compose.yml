@@ -1,0 +1,15 @@
+services:
+  worker:
+    build: .
+    image: notaai-worker:local
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      QUEUE_DRIVER: memory
+      OCR_MODE: mock
+      LLM_MODE: mock
+    ports:
+      - "8080:8080"
+    # Cloud Run: auto-scale horizontal — banyak replika memproses antrean paralel.
+    deploy:
+      replicas: 1

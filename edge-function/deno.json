@@ -1,0 +1,14 @@
+{
+  "name": "notaai-edge-function",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Supabase Edge Function — producer Upstash Kafka (PRD NotaAI §4)",
+  "scripts": {
+    "serve": "supabase functions serve edge-function",
+    "deploy": "supabase functions deploy edge-function --no-verify-jwt"
+  },
+  "imports": {
+    "@upstash/kafka": "https://esm.sh/@upstash/kafka@1.3.5",
+    "@supabase/functions-js": "https://esm.sh/@supabase/functions-js@2"
+  }
+}

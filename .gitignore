@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+*.log
+.DS_Store
+mobile/.dart_tool/
+mobile/build/
+edge-function/deno.lock

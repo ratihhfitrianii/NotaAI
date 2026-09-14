@@ -1,0 +1,21 @@
+name: notaai
+description: "NotaAI — aplikasi ujian multibahasa & koreksi (Flutter)."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  image: ^4.1.3
+  image_picker: ^1.0.5
+  http: ^1.2.0
+  supabase_flutter: ^2.5.3
+
+dev_dependencies:
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
