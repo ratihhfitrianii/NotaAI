@@ -366,13 +366,19 @@
     if (rows.length === 0) return null;
 
     const esc = escapeHtml;
+    // Escape <br> dulu lalu render sebagai baris baru dalam sel
+    const renderCell = (val) => {
+      const parts = String(val).split(/<br\s*\/?>/i);
+      return parts.map(p => esc(p.trim())).join('<br style="display:block;margin:2px 0">');
+    };
+
     let html = `<table class="result-table"><thead><tr>`;
-    headerCells.forEach(h => { html += `<th>${esc(h)}</th>`; });
+    headerCells.forEach(h => { html += `<th>${renderCell(h)}</th>`; });
     html += `</tr></thead><tbody>`;
     rows.forEach(r => {
       html += `<tr>`;
       headerCells.forEach((_, i) => {
-        html += `<td>${esc(r[i] ?? '')}</td>`;
+        html += `<td>${renderCell(r[i] ?? '')}</td>`;
       });
       html += `</tr>`;
     });
