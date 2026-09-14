@@ -8,7 +8,7 @@ describe("API NotaAI OCR (integration)", () => {
   let app: import("express").Express;
 
   beforeAll(async () => {
-    const s = await startServer({ useMemoryQueue: true });
+    const s = await startServer({ useMemoryQueue: true, ocrMode: "mock" });
     stop = s.stop;
     app = s.app;
   });

@@ -9,6 +9,7 @@ import { env } from "./config/env";
 
 export async function startServer(opts?: {
   useMemoryQueue?: boolean;
+  ocrMode?: "mock" | "tesseract" | "real";
 }): Promise<{ app: express.Express; stop: () => Promise<void> }> {
   const app = express();
   app.use(express.json({ limit: "10mb" }));
@@ -18,7 +19,8 @@ export async function startServer(opts?: {
 
   const queue = opts?.useMemoryQueue ? createQueue() : createQueue();
   const repo = new MemoryExamResultRepository();
-  const pipeline = new OcrPipeline(queue, repo);
+  const ocrMode = opts?.ocrMode ?? env.OCR_MODE;
+  const pipeline = new OcrPipeline(queue, repo, ocrMode);
 
   app.use(
     "/api/v1",

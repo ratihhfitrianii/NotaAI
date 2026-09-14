@@ -250,7 +250,6 @@
       card.innerHTML = `
         <h3>${file}</h3>
         <div class="meta">
-          <span class="subject-tag">${subj}</span>
           <span>${doc.processedAt ? new Date(doc.processedAt).toLocaleString('id-ID') : ''}</span>
         </div>
         <pre>${escapeHtml(content)}</pre>

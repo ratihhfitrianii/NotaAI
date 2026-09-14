@@ -14,7 +14,7 @@ const envSchema = z.object({
   QUEUE_TOPIC: z.string().min(1).default("ocr-processing-queue"),
   CONSUMER_INSTANCES: z.coerce.number().int().min(1).max(64).default(4),
 
-  OCR_MODE: z.enum(["mock", "real"]).default("mock"),
+  OCR_MODE: z.enum(["mock", "tesseract", "real"]).default("tesseract"),
   LLM_MODE: z.enum(["mock", "real"]).default("mock"),
 
   UPSTASH_KAFKA_URL: z.string().default(""),
