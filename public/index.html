@@ -228,8 +228,8 @@
         color: #ecfeff;
       }
       .result-body {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
+        flex-direction: column;
         gap: 16px;
       }
       @media (max-width: 700px) {
@@ -245,7 +245,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 200px;
+        width: 100%;
+        max-height: 45vh;
       }
       .result-photo img {
         width: 100%;
@@ -265,6 +266,7 @@
         word-break: break-word;
         color: var(--text);
         font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+        width: 100%;
       }
       .result-text .label {
         color: var(--muted);
