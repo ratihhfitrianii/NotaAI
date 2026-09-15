@@ -2,8 +2,9 @@ import { OcrTask, DigitizationResult, OcrResult, SubjectType } from "../types";
 import { createOcrAdapter } from "../ocr";
 import { QueueProvider } from "../queue/types";
 import { ExamResultRepository } from "../db/repository";
-import { AppError } from "../lib/errors";
+import { AppError, RateLimitError } from "../lib/errors";
 import { logger } from "../lib/logger";
+import { TesseractOcrAdapter } from "../ocr/tesseractAdapter";
 
 /**
  * Pipeline OCR NotaAI — alur digitalisasi:
@@ -51,23 +52,47 @@ export class OcrPipeline {
     // Tanpa subjek → digitalisasi teks generik (deteksi otomatis).
     const subjectType: SubjectType = task.subjectType ?? "inggris";
     const adapter = createOcrAdapter(subjectType, this.ocrMode);
-    const ocr = await adapter.recognize({
-      imageUrl,
-      languageHint:
-        subjectType === "mandarin"
-          ? "zh"
-          : subjectType === "inggris"
-            ? "en"
-            : undefined,
-      imageBase64: task.imageBase64,
-      imageFileName: task.imageFileName,
-    });
 
-    return {
-      documentId,
-      subjectType,
-      ocr,
-      processedAt: new Date().toISOString(),
-    };
+    try {
+      const ocr = await adapter.recognize({
+        imageUrl,
+        languageHint:
+          subjectType === "mandarin"
+            ? "zh"
+            : subjectType === "inggris"
+              ? "en"
+              : undefined,
+        imageBase64: task.imageBase64,
+        imageFileName: task.imageFileName,
+      });
+
+      return {
+        documentId,
+        subjectType,
+        ocr,
+        processedAt: new Date().toISOString(),
+      };
+    } catch (err) {
+      // Quota Gemini habis → fallback otomatis ke Tesseract (lokal, gratis, tanpa batas).
+      if (err instanceof RateLimitError) {
+        logger.warn("fallback ke Tesseract karena quota Gemini habis", {
+          documentId,
+          provider: err.provider,
+        });
+        const tesseract = new TesseractOcrAdapter();
+        const ocr = await tesseract.recognize({
+          imageUrl,
+          imageBase64: task.imageBase64,
+          imageFileName: task.imageFileName,
+        });
+        return {
+          documentId,
+          subjectType,
+          ocr,
+          processedAt: new Date().toISOString(),
+        };
+      }
+      throw err;
+    }
   }
 }

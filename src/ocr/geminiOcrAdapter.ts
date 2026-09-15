@@ -2,6 +2,7 @@ import { OcrAdapter } from "./types";
 import { OcrResult } from "../types";
 import sharp from "sharp";
 import { logger } from "../lib/logger";
+import { RateLimitError } from "../lib/errors";
 
 // @google/genai adalah ESM-only — gunakan dynamic import agar kompatibel CommonJS.
 type GoogleGenAIInstance = import("@google/genai", {
@@ -129,10 +130,26 @@ export class GeminiOcrAdapter implements OcrAdapter {
         source: fileLabel,
       };
     } catch (err) {
-      logger.error("gemini OCR gagal", { err: String(err) });
+      // Deteksi 429 (quota habis / rate limit) — lempar RateLimitError agar pipeline bisa fallback
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes("429") ||
+        msg.includes("RESOURCE_EXHAUSTED") ||
+        msg.includes("quota")
+      ) {
+        logger.warn("gemini OCR: quota/rate limit habis", {
+          msg: msg.slice(0, 200),
+        });
+        throw new RateLimitError(
+          "gemini",
+          `Gemini quota habis — fallback ke Tesseract`,
+          60,
+        );
+      }
+      logger.error("gemini OCR gagal", { err: msg.slice(0, 200) });
       return {
         subject: "inggris",
-        text: `[gemini OCR gagal: ${err instanceof Error ? err.message : String(err)}]`,
+        text: `[gemini OCR gagal: ${msg.slice(0, 300)}]`,
         source: fileLabel,
       };
     }

@@ -32,3 +32,15 @@ export const errorCodes = {
   STORAGE_UNAVAILABLE: "STORAGE_UNAVAILABLE",
   INTERNAL: "INTERNAL",
 } as const;
+
+/** Error ketika API provider mengembalikan 429 (quota habis / rate limit). */
+export class RateLimitError extends Error {
+  readonly provider: string;
+  readonly retryAfter?: number;
+  constructor(provider: string, message: string, retryAfter?: number) {
+    super(message);
+    this.name = "RateLimitError";
+    this.provider = provider;
+    this.retryAfter = retryAfter;
+  }
+}
