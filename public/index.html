@@ -427,6 +427,24 @@
       const resultsView = document.getElementById("resultsView");
       const dropZone = document.getElementById("dropZone");
       const fileInput = document.getElementById("fileInput");
+
+      // ─── API base: pilih backend Render secara otomatis ───
+      // Saat halaman dibuka dari Vercel (frontend terpisah), panggil API di Render.
+      // Saat dibuka langsung dari Render/lokal, pakai origin yang sama.
+      // (Hanya berguna untuk demo — dev asli tetap pakai origin sendiri.)
+      const API_BASE =
+        location.hostname.endsWith(".vercel.app") ||
+        location.hostname === "notaai-vercel.vercel.app"
+          ? "https://notaai.onrender.com"
+          : "";
+      function apiUrl(path) {
+        return API_BASE + path;
+      }
+      function assetUrl(u) {
+        // Gambar relatif (/uploads/...) — di Vercel arahkan ke Render.
+        if (u && u.startsWith("/") && API_BASE) return API_BASE + u;
+        return u;
+      }
       const filesPreview = document.getElementById("filesPreview");
       const uploadBtn = document.getElementById("uploadBtn");
       const clearBtn = document.getElementById("clearBtn");
@@ -505,7 +523,7 @@
         for (const f of selected) fd.append("files", f);
 
         try {
-          const res = await fetch("/api/v1/upload", {
+          const res = await fetch(apiUrl("/api/v1/upload"), {
             method: "POST",
             body: fd,
           });
@@ -533,7 +551,7 @@
 
           const fileName =
             doc.imageFileName || doc.ocr?.source || doc.documentId;
-          const imgUrl = doc.imageUrl || "";
+          const imgUrl = assetUrl(doc.imageUrl || "");
 
           let text = "";
           if (doc.ocr?.latex) text = doc.ocr.latex;

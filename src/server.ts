@@ -16,6 +16,24 @@ export async function startServer(opts?: {
   const app = express();
   app.use(express.json({ limit: "10mb" }));
 
+  // CORS — izinkan dashboard Vercel (frontend terpisah) memanggil API di Render.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const origin = req.headers.origin;
+    // Izinkan semua origin untuk demo; sesuaikan dengan domain Vercel bila perlu.
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader("Vary", "Origin");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization",
+    );
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+    next();
+  });
+
   const uploadDir = path.join(process.cwd(), "uploads");
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
