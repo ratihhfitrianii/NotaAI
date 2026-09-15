@@ -316,14 +316,25 @@
       else text = JSON.stringify(doc.ocr, null, 2);
 
       // Deteksi apakah hasil berupa tabel (Markdown | a | b |)
-      const tableHtml = tryParseMarkdownTable(text);
+      const parsedTable = parseMarkdownTable(text);
       const time = doc.processedAt
         ? new Date(doc.processedAt).toLocaleString('id-ID')
         : '';
 
-      const contentHtml = tableHtml
-        ? `<div class="result-table-wrap">${tableHtml}</div>`
-        : `<div class="result-text-inner">${escapeHtml(text)}</div>`;
+      // Tampilkan SEMUA: teks sebelum tabel + tabel + teks sesudah tabel.
+      let contentHtml;
+      if (parsedTable) {
+        contentHtml =
+          (parsedTable.before
+            ? `<div class="result-text-inner">${escapeHtml(parsedTable.before)}</div>`
+            : '') +
+          `<div class="result-table-wrap">${parsedTable.tableHtml}</div>` +
+          (parsedTable.after
+            ? `<div class="result-text-inner" style="margin-top:10px">${escapeHtml(parsedTable.after)}</div>`
+            : '');
+      } else {
+        contentHtml = `<div class="result-text-inner">${escapeHtml(text)}</div>`;
+      }
 
       card.innerHTML = `
         <h3>${escapeHtml(fileName)}</h3>
@@ -343,11 +354,10 @@
     }
   }
 
-  /** Deteksi Markdown table (baris berisi |). Return HTML <table> atau null. */
-  function tryParseMarkdownTable(text) {
+  /** Deteksi Markdown table. Return { before, tableHtml, after } atau null. */
+  function parseMarkdownTable(text) {
     if (!text) return null;
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    // Cari baris separator |---|---|
     let sepIdx = -1;
     for (let i = 0; i < lines.length; i++) {
       if (/^\|[\s:|-]+\|$/.test(lines[i]) && lines[i].includes('-')) { sepIdx = i; break; }
@@ -366,25 +376,35 @@
     }
     if (rows.length === 0) return null;
 
+    // Teks sebelum tabel (judul, dll)
+    const beforeLines = lines.slice(0, sepIdx - 1);
+    // Teks setelah tabel (footer, catatan)
+    let afterStart = sepIdx + 1 + rows.length;
+    const afterLines = lines.slice(afterStart);
+
     const esc = escapeHtml;
-    // Escape <br> dulu lalu render sebagai baris baru dalam sel
     const renderCell = (val) => {
       const parts = String(val).split(/<br\s*\/?>/i);
       return parts.map(p => esc(p.trim())).join('<br style="display:block;margin:2px 0">');
     };
 
-    let html = `<table class="result-table"><thead><tr>`;
-    headerCells.forEach(h => { html += `<th>${renderCell(h)}</th>`; });
-    html += `</tr></thead><tbody>`;
+    let tableHtml = `<table class="result-table"><thead><tr>`;
+    headerCells.forEach(h => { tableHtml += `<th>${renderCell(h)}</th>`; });
+    tableHtml += `</tr></thead><tbody>`;
     rows.forEach(r => {
-      html += `<tr>`;
+      tableHtml += `<tr>`;
       headerCells.forEach((_, i) => {
-        html += `<td>${renderCell(r[i] ?? '')}</td>`;
+        tableHtml += `<td>${renderCell(r[i] ?? '')}</td>`;
       });
-      html += `</tr>`;
+      tableHtml += `</tr>`;
     });
-    html += `</tbody></table>`;
-    return html;
+    tableHtml += `</tbody></table>`;
+
+    return {
+      before: beforeLines.join('\n'),
+      tableHtml,
+      after: afterLines.join('\n'),
+    };
   }
 
   // ─── Tombol "Unggah Baru" ───
