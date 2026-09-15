@@ -190,6 +190,11 @@
         border-radius: 16px;
         padding: 20px;
         margin-bottom: 20px;
+        /* Scroll di dalam tiap kartu — hasil panjang/lebar tidak memakan banyak layar */
+        max-height: calc(100vh - 180px);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
       }
       .result-card h3 {
         font-size: 16px;
@@ -249,10 +254,14 @@
         max-height: 45vh;
       }
       .result-photo img {
-        width: 100%;
+        max-width: 100%;
+        max-height: 45vh;
+        width: auto;
         height: auto;
         display: block;
+        margin: 0 auto;
         border-radius: 12px;
+        object-fit: contain;
       }
       .result-text {
         background: #0b1424;
@@ -262,8 +271,8 @@
         overflow-x: auto;
         font-size: 14px;
         line-height: 1.7;
-        white-space: pre-wrap;
-        word-break: break-word;
+        white-space: pre;
+        word-break: normal;
         color: var(--text);
         font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
         width: 100%;
