@@ -11,7 +11,7 @@ services:
     plan: free
     region: oregon # free instance hanya tersedia di Oregon
     autoDeploy: true
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: node dist/index.js
     healthCheckPath: /api/v1/health
     envVars:
