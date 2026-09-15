@@ -1,16 +1,19 @@
-# Render Blueprint — deploy otomatis dari GitHub (https://dashboard.render.com/select-repo?type=blueprint)
-# 1. Push repo ini ke GitHub
+# Render Blueprint — deploy otomatis dari GitHub
+# 1. Push repo ke GitHub (sudah)
 # 2. Render → New → Blueprint → pilih repo NotaAI
 # 3. Isi GEMINI_API_KEY (wajib, dari https://aistudio.google.com/apikey)
-# 4. Apply → Render membuat web service + deploy otomatis tiap push
+# 4. Apply → Render membuat web service + auto-deploy tiap push
 
 services:
   - type: web
     name: notaai
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    region: oregon # free instance hanya tersedia di Oregon
+    autoDeploy: true
+    buildCommand: npm ci && npm run build
     startCommand: node dist/index.js
+    healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
         value: production
