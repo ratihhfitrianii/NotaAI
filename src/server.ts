@@ -1,5 +1,6 @@
 import express, { NextFunction, Request, Response } from "express";
 import path from "path";
+import fs from "fs";
 import { createApiRouter } from "./routes/api";
 import { createQueue } from "./queue";
 import { MemoryExamResultRepository } from "./db/memoryRepository";
@@ -15,11 +16,16 @@ export async function startServer(opts?: {
   const app = express();
   app.use(express.json({ limit: "10mb" }));
 
+  const uploadDir = path.join(process.cwd(), "uploads");
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
   // Dashboard web (mode demo): tampilan nyata untuk tes mandiri.
   app.use(express.static("public"));
 
   // Serve foto/dokumen yang sudah di-upload agar bisa ditampilkan di dashboard.
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  app.use("/uploads", express.static(uploadDir));
 
   const queue = opts?.useMemoryQueue ? createQueue() : createQueue();
   const repo = new MemoryExamResultRepository();
