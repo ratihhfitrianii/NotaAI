@@ -100,7 +100,7 @@ export function createApiRouter(
           files.map(async (file): Promise<UploadResult> => {
             const imageBase64 = fs.readFileSync(file.path).toString("base64");
             const ext = path.extname(file.originalname) || ".png";
-            const savedName = `${safeFileName(file.originalname)}-${Date.now()}-${Math.random().toString(36).slice(2,6)}${ext}`;
+            const savedName = `${safeFileName(file.originalname)}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}${ext}`;
             const savedPath = path.join(process.cwd(), "uploads", savedName);
             fs.copyFileSync(file.path, savedPath);
             const imageUrl = `/uploads/${savedName}`;

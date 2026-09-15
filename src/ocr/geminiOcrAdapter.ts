@@ -4,8 +4,12 @@ import sharp from "sharp";
 import { logger } from "../lib/logger";
 
 // @google/genai adalah ESM-only — gunakan dynamic import agar kompatibel CommonJS.
-type GoogleGenAIInstance = import("@google/genai", { with: { "resolution-mode": "import" } }).GoogleGenAI;
-async function getGenAI(): Promise<typeof import("@google/genai", { with: { "resolution-mode": "import" } })> {
+type GoogleGenAIInstance = import("@google/genai", {
+  with: { "resolution-mode": "import" },
+}).GoogleGenAI;
+async function getGenAI(): Promise<
+  typeof import("@google/genai", { with: { "resolution-mode": "import" } })
+> {
   return import("@google/genai");
 }
 
@@ -69,9 +73,18 @@ export class GeminiOcrAdapter implements OcrAdapter {
       let payload = input.imageBase64;
       try {
         const meta = await sharp(rawBuf).metadata();
-        if ((meta.width ?? 0) > 1600 || (meta.height ?? 0) > 1600 || meta.format !== "jpeg") {
+        if (
+          (meta.width ?? 0) > 1600 ||
+          (meta.height ?? 0) > 1600 ||
+          meta.format !== "jpeg"
+        ) {
           const resized = await sharp(rawBuf)
-            .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+            .resize({
+              width: 1600,
+              height: 1600,
+              fit: "inside",
+              withoutEnlargement: true,
+            })
             .jpeg({ quality: 80 })
             .toBuffer();
           payload = resized.toString("base64");

@@ -1,348 +1,460 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NotaAI — Digitalisasi Dokumen</title>
-<style>
-  :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --border: #334155;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
-    --accent: #22d3ee;
-    --success: #4ade80;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 24px;
-  }
-  .container { max-width: 1000px; margin: 0 auto; }
-
-  header {
-    display: flex; align-items: baseline; gap: 12px;
-    margin-bottom: 24px; flex-wrap: wrap;
-  }
-  h1 {
-    font-size: 26px; font-weight: 800;
-    background: linear-gradient(90deg, var(--accent), #a78bfa);
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .badge {
-    background: #064e3b; color: var(--success);
-    padding: 4px 10px; border-radius: 999px;
-    font-size: 12px; font-weight: 600;
-  }
-  .sub {
-    width: 100%; color: var(--muted); font-size: 14px;
-  }
-
-  /* ─── Upload Zone ─── */
-  .upload-zone { }
-  .drop {
-    border: 2px dashed var(--border);
-    border-radius: 16px;
-    padding: 48px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color .2s, background .2s;
-    background: var(--card);
-  }
-  .drop:hover, .drop.drag {
-    border-color: var(--accent);
-    background: #16233c;
-  }
-  .drop .icon { font-size: 42px; }
-  .drop .msg { margin-top: 12px; font-size: 15px; color: var(--text); }
-  .drop .hint { margin-top: 6px; font-size: 13px; color: var(--muted); }
-
-  #fileInput { display: none; }
-
-  .files-preview {
-    display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px;
-  }
-  .file-chip {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 10px; padding: 8px 12px;
-    font-size: 13px; display: flex; align-items: center; gap: 8px;
-  }
-  .file-chip .x {
-    cursor: pointer; color: var(--muted); font-weight: 700;
-  }
-  .file-chip .x:hover { color: #f87171; }
-
-  .actions { margin-top: 16px; display: flex; gap: 10px; }
-  button.primary {
-    background: linear-gradient(90deg, var(--accent), #a78bfa);
-    color: #0f172a; border: 0; font-weight: 700;
-    padding: 12px 24px; border-radius: 12px; cursor: pointer; font-size: 15px;
-  }
-  button.primary:disabled { opacity: .5; cursor: not-allowed; }
-  button.ghost {
-    background: transparent; color: var(--muted);
-    border: 1px solid var(--border); padding: 12px 18px;
-    border-radius: 12px; cursor: pointer; font-size: 14px;
-  }
-
-  .status { margin-top: 16px; font-size: 14px; color: var(--muted); min-height: 20px; }
-  .status.error { color: #f87171; }
-
-  /* ─── Hasil (foto + teks) ─── */
-  .results-view { display: none; }
-  .results-view.active { display: block; }
-  .upload-zone.hidden { display: none; }
-
-  .result-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px; padding: 20px; margin-bottom: 20px;
-  }
-  .result-card h3 {
-    font-size: 16px; margin-bottom: 14px; color: var(--accent);
-  }
-  .result-body {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-  @media (max-width: 700px) {
-    .result-body { grid-template-columns: 1fr; }
-  }
-  .result-photo {
-    background: #0b1424;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 200px;
-  }
-  .result-photo img {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: 12px;
-  }
-  .result-text {
-    background: #0b1424;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
-    overflow-x: auto;
-    font-size: 14px;
-    line-height: 1.7;
-    white-space: pre-wrap;
-    word-break: break-word;
-    color: var(--text);
-    font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
-  }
-  .result-text .label {
-    color: var(--muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-    font-family: system-ui, sans-serif;
-  }
-
-  /* ─── Tabel hasil digitalisasi ─── */
-  .result-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    margin-top: 4px;
-  }
-  .result-table th, .result-table td {
-    border: 1px solid var(--border);
-    padding: 8px 10px;
-    text-align: left;
-    vertical-align: top;
-  }
-  .result-table th {
-    background: #16233c;
-    color: var(--accent);
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .result-table tr:nth-child(even) {
-    background: #16233c;
-  }
-  .result-table-wrap {
-    overflow-x: auto;
-  }
-
-  .btn-row { margin-top: 20px; display: flex; gap: 10px; justify-content: center; }
-
-  .empty {
-    text-align: center; color: var(--muted); padding: 40px 0; font-size: 14px;
-  }
-</style>
-</head>
-<body>
-<div class="container">
-  <header>
-    <h1>NotaAI</h1>
-    <span class="badge">● siap</span>
-    <span class="sub">Digitalisasi tulisan tangan — unggah foto/dokumen, hasil langsung tampil.</span>
-  </header>
-
-  <!-- ═══════════════ Upload Zone ═══════════════ -->
-  <div class="upload-zone" id="uploadZone">
-    <div class="drop" id="dropZone">
-      <div class="icon">📄</div>
-      <div class="msg">Klik untuk pilih foto / dokumen</div>
-      <div class="hint">Bisa lebih dari 1 file • PNG, JPG</div>
-    </div>
-    <input type="file" id="fileInput" multiple accept="image/*">
-    <div class="files-preview" id="filesPreview"></div>
-    <div class="actions">
-      <button class="primary" id="uploadBtn" disabled>Unggah &amp; Digitalisasi</button>
-      <button class="ghost" id="clearBtn">Bersihkan</button>
-    </div>
-    <div class="status" id="status"></div>
-  </div>
-
-  <!-- ═══════════════ Hasil ═══════════════ -->
-  <div class="results-view" id="resultsView">
-    <div id="results"></div>
-    <div class="btn-row">
-      <button class="primary" id="newUploadBtn">↩ Unggah Baru</button>
-    </div>
-  </div>
-</div>
-
-<script>
-  const uploadZone = document.getElementById('uploadZone');
-  const resultsView = document.getElementById('resultsView');
-  const dropZone = document.getElementById('dropZone');
-  const fileInput = document.getElementById('fileInput');
-  const filesPreview = document.getElementById('filesPreview');
-  const uploadBtn = document.getElementById('uploadBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const newUploadBtn = document.getElementById('newUploadBtn');
-  const status = document.getElementById('status');
-  const results = document.getElementById('results');
-
-  let selected = [];
-
-  // ─── Drop / select files ───
-  dropZone.addEventListener('click', () => fileInput.click());
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault(); dropZone.classList.remove('drag');
-    addFiles(e.dataTransfer.files);
-  });
-  fileInput.addEventListener('change', e => addFiles(e.target.files));
-
-  function addFiles(list) {
-    for (const f of list) selected.push(f);
-    uploadBtn.disabled = selected.length === 0;
-    renderFiles();
-    status.textContent = `${selected.length} file dipilih — siap unggah.`;
-  }
-
-  function renderFiles() {
-    filesPreview.innerHTML = '';
-    selected.forEach((f, i) => {
-      const chip = document.createElement('div');
-      chip.className = 'file-chip';
-      chip.innerHTML = `📎 <span>${f.name}</span> (${(f.size/1024).toFixed(0)} KB) <span class="x" data-i="${i}">✕</span>`;
-      chip.querySelector('.x').addEventListener('click', () => {
-        selected.splice(i, 1);
-        uploadBtn.disabled = selected.length === 0;
-        renderFiles();
-      });
-      filesPreview.appendChild(chip);
-    });
-  }
-
-  clearBtn.addEventListener('click', resetUpload);
-
-  function resetUpload() {
-    selected = [];
-    fileInput.value = '';
-    filesPreview.innerHTML = '';
-    uploadBtn.disabled = true;
-    status.textContent = '';
-  }
-
-  // ─── Upload & digitize ───
-  uploadBtn.addEventListener('click', async () => {
-    if (selected.length === 0) return;
-    uploadBtn.disabled = true;
-    const n = selected.length;
-    status.textContent = `⏳ Mendigitalisasi ${n} file...`;
-    status.className = 'status';
-
-    const fd = new FormData();
-    for (const f of selected) fd.append('files', f);
-
-    try {
-      const res = await fetch('/api/v1/upload', { method: 'POST', body: fd });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || 'Gagal memproses');
-      showResults(body.data);
-    } catch (err) {
-      status.textContent = '❌ ' + err.message;
-      status.className = 'status error';
-      uploadBtn.disabled = false;
-    }
-  });
-
-  // ─── Tampilkan hasil: foto + teks berdampingan ───
-  function showResults(data) {
-    uploadZone.classList.add('hidden');
-    resultsView.classList.add('active');
-    results.innerHTML = '';
-
-    for (const doc of data) {
-      const card = document.createElement('div');
-      card.className = 'result-card';
-
-      const fileName = doc.imageFileName || doc.ocr?.source || doc.documentId;
-      const imgUrl = doc.imageUrl || '';
-
-      let text = '';
-      if (doc.ocr?.latex) text = doc.ocr.latex;
-      else if (doc.ocr?.hanzi) text = doc.ocr.hanzi + '\n\nPinyin: ' + doc.ocr.pinyin;
-      else if (doc.ocr?.text) text = doc.ocr.text;
-      else text = JSON.stringify(doc.ocr, null, 2);
-
-      // Deteksi apakah hasil berupa tabel (Markdown | a | b |)
-      const parsedTable = parseMarkdownTable(text);
-      const time = doc.processedAt
-        ? new Date(doc.processedAt).toLocaleString('id-ID')
-        : '';
-
-      // Tampilkan SEMUA: teks sebelum tabel + tabel + teks sesudah tabel.
-      let contentHtml;
-      if (parsedTable) {
-        contentHtml =
-          (parsedTable.before
-            ? `<div class="result-text-inner">${escapeHtml(parsedTable.before)}</div>`
-            : '') +
-          `<div class="result-table-wrap">${parsedTable.tableHtml}</div>` +
-          (parsedTable.after
-            ? `<div class="result-text-inner" style="margin-top:10px">${escapeHtml(parsedTable.after)}</div>`
-            : '');
-      } else {
-        contentHtml = `<div class="result-text-inner">${escapeHtml(text)}</div>`;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NotaAI — Digitalisasi Dokumen</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --border: #334155;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #22d3ee;
+        --success: #4ade80;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        padding: 24px;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
       }
 
-      card.innerHTML = `
+      header {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        font-size: 26px;
+        font-weight: 800;
+        background: linear-gradient(90deg, var(--accent), #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .badge {
+        background: #064e3b;
+        color: var(--success);
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .sub {
+        width: 100%;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      /* ─── Upload Zone ─── */
+      .upload-zone {
+      }
+      .drop {
+        border: 2px dashed var(--border);
+        border-radius: 16px;
+        padding: 48px 24px;
+        text-align: center;
+        cursor: pointer;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+        background: var(--card);
+      }
+      .drop:hover,
+      .drop.drag {
+        border-color: var(--accent);
+        background: #16233c;
+      }
+      .drop .icon {
+        font-size: 42px;
+      }
+      .drop .msg {
+        margin-top: 12px;
+        font-size: 15px;
+        color: var(--text);
+      }
+      .drop .hint {
+        margin-top: 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      #fileInput {
+        display: none;
+      }
+
+      .files-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .file-chip {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .file-chip .x {
+        cursor: pointer;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .file-chip .x:hover {
+        color: #f87171;
+      }
+
+      .actions {
+        margin-top: 16px;
+        display: flex;
+        gap: 10px;
+      }
+      button.primary {
+        background: linear-gradient(90deg, var(--accent), #a78bfa);
+        color: #0f172a;
+        border: 0;
+        font-weight: 700;
+        padding: 12px 24px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 15px;
+      }
+      button.primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      button.ghost {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        padding: 12px 18px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .status {
+        margin-top: 16px;
+        font-size: 14px;
+        color: var(--muted);
+        min-height: 20px;
+      }
+      .status.error {
+        color: #f87171;
+      }
+
+      /* ─── Hasil (foto + teks) ─── */
+      .results-view {
+        display: none;
+      }
+      .results-view.active {
+        display: block;
+      }
+      .upload-zone.hidden {
+        display: none;
+      }
+
+      .result-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .result-card h3 {
+        font-size: 16px;
+        margin-bottom: 14px;
+        color: var(--accent);
+      }
+      .result-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      @media (max-width: 700px) {
+        .result-body {
+          grid-template-columns: 1fr;
+        }
+      }
+      .result-photo {
+        background: #0b1424;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+      }
+      .result-photo img {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 12px;
+      }
+      .result-text {
+        background: #0b1424;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        overflow-x: auto;
+        font-size: 14px;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--text);
+        font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+      }
+      .result-text .label {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        font-family: system-ui, sans-serif;
+      }
+
+      /* ─── Tabel hasil digitalisasi ─── */
+      .result-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .result-table th,
+      .result-table td {
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .result-table th {
+        background: #16233c;
+        color: var(--accent);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .result-table tr:nth-child(even) {
+        background: #16233c;
+      }
+      .result-table-wrap {
+        overflow-x: auto;
+      }
+
+      .btn-row {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 40px 0;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>NotaAI</h1>
+        <span class="badge">● siap</span>
+        <span class="sub"
+          >Digitalisasi tulisan tangan — unggah foto/dokumen, hasil langsung
+          tampil.</span
+        >
+      </header>
+
+      <!-- ═══════════════ Upload Zone ═══════════════ -->
+      <div class="upload-zone" id="uploadZone">
+        <div class="drop" id="dropZone">
+          <div class="icon">📄</div>
+          <div class="msg">Klik untuk pilih foto / dokumen</div>
+          <div class="hint">Bisa lebih dari 1 file • PNG, JPG</div>
+        </div>
+        <input type="file" id="fileInput" multiple accept="image/*" />
+        <div class="files-preview" id="filesPreview"></div>
+        <div class="actions">
+          <button class="primary" id="uploadBtn" disabled>
+            Unggah &amp; Digitalisasi
+          </button>
+          <button class="ghost" id="clearBtn">Bersihkan</button>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+
+      <!-- ═══════════════ Hasil ═══════════════ -->
+      <div class="results-view" id="resultsView">
+        <div id="results"></div>
+        <div class="btn-row">
+          <button class="primary" id="newUploadBtn">↩ Unggah Baru</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const uploadZone = document.getElementById("uploadZone");
+      const resultsView = document.getElementById("resultsView");
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("fileInput");
+      const filesPreview = document.getElementById("filesPreview");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const newUploadBtn = document.getElementById("newUploadBtn");
+      const status = document.getElementById("status");
+      const results = document.getElementById("results");
+
+      let selected = [];
+
+      // ─── Drop / select files ───
+      dropZone.addEventListener("click", () => fileInput.click());
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("drag");
+      });
+      dropZone.addEventListener("dragleave", () =>
+        dropZone.classList.remove("drag"),
+      );
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag");
+        addFiles(e.dataTransfer.files);
+      });
+      fileInput.addEventListener("change", (e) => addFiles(e.target.files));
+
+      function addFiles(list) {
+        for (const f of list) selected.push(f);
+        uploadBtn.disabled = selected.length === 0;
+        renderFiles();
+        status.textContent = `${selected.length} file dipilih — siap unggah.`;
+      }
+
+      function renderFiles() {
+        filesPreview.innerHTML = "";
+        selected.forEach((f, i) => {
+          const chip = document.createElement("div");
+          chip.className = "file-chip";
+          chip.innerHTML = `📎 <span>${f.name}</span> (${(f.size / 1024).toFixed(0)} KB) <span class="x" data-i="${i}">✕</span>`;
+          chip.querySelector(".x").addEventListener("click", () => {
+            selected.splice(i, 1);
+            uploadBtn.disabled = selected.length === 0;
+            renderFiles();
+          });
+          filesPreview.appendChild(chip);
+        });
+      }
+
+      clearBtn.addEventListener("click", resetUpload);
+
+      function resetUpload() {
+        selected = [];
+        fileInput.value = "";
+        filesPreview.innerHTML = "";
+        uploadBtn.disabled = true;
+        status.textContent = "";
+      }
+
+      // ─── Upload & digitize ───
+      uploadBtn.addEventListener("click", async () => {
+        if (selected.length === 0) return;
+        uploadBtn.disabled = true;
+        const n = selected.length;
+        status.textContent = `⏳ Mendigitalisasi ${n} file...`;
+        status.className = "status";
+
+        const fd = new FormData();
+        for (const f of selected) fd.append("files", f);
+
+        try {
+          const res = await fetch("/api/v1/upload", {
+            method: "POST",
+            body: fd,
+          });
+          const body = await res.json();
+          if (!res.ok) throw new Error(body.message || "Gagal memproses");
+          showResults(body.data);
+        } catch (err) {
+          status.textContent = "❌ " + err.message;
+          status.className = "status error";
+          uploadBtn.disabled = false;
+        }
+      });
+
+      // ─── Tampilkan hasil: foto + teks berdampingan ───
+      function showResults(data) {
+        uploadZone.classList.add("hidden");
+        resultsView.classList.add("active");
+        results.innerHTML = "";
+
+        for (const doc of data) {
+          const card = document.createElement("div");
+          card.className = "result-card";
+
+          const fileName =
+            doc.imageFileName || doc.ocr?.source || doc.documentId;
+          const imgUrl = doc.imageUrl || "";
+
+          let text = "";
+          if (doc.ocr?.latex) text = doc.ocr.latex;
+          else if (doc.ocr?.hanzi)
+            text = doc.ocr.hanzi + "\n\nPinyin: " + doc.ocr.pinyin;
+          else if (doc.ocr?.text) text = doc.ocr.text;
+          else text = JSON.stringify(doc.ocr, null, 2);
+
+          // Deteksi apakah hasil berupa tabel (Markdown | a | b |)
+          const parsedTable = parseMarkdownTable(text);
+          const time = doc.processedAt
+            ? new Date(doc.processedAt).toLocaleString("id-ID")
+            : "";
+
+          // Tampilkan SEMUA: teks sebelum tabel + tabel + teks sesudah tabel.
+          let contentHtml;
+          if (parsedTable) {
+            contentHtml =
+              (parsedTable.before
+                ? `<div class="result-text-inner">${escapeHtml(parsedTable.before)}</div>`
+                : "") +
+              `<div class="result-table-wrap">${parsedTable.tableHtml}</div>` +
+              (parsedTable.after
+                ? `<div class="result-text-inner" style="margin-top:10px">${escapeHtml(parsedTable.after)}</div>`
+                : "");
+          } else {
+            contentHtml = `<div class="result-text-inner">${escapeHtml(text)}</div>`;
+          }
+
+          card.innerHTML = `
         <h3>${escapeHtml(fileName)}</h3>
         <div class="result-body">
           <div class="result-photo">
-            ${imgUrl
-              ? `<img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(fileName)}" loading="lazy">`
-              : '<span style="color:var(--muted)">Tidak ada pratinjau</span>'}
+            ${
+              imgUrl
+                ? `<img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(fileName)}" loading="lazy">`
+                : '<span style="color:var(--muted)">Tidak ada pratinjau</span>'
+            }
           </div>
           <div class="result-text">
             <div class="label">Hasil Digitalisasi — ${time}</div>
@@ -350,73 +462,91 @@
           </div>
         </div>
       `;
-      results.appendChild(card);
-    }
-  }
+          results.appendChild(card);
+        }
+      }
 
-  /** Deteksi Markdown table. Return { before, tableHtml, after } atau null. */
-  function parseMarkdownTable(text) {
-    if (!text) return null;
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    let sepIdx = -1;
-    for (let i = 0; i < lines.length; i++) {
-      if (/^\|[\s:|-]+\|$/.test(lines[i]) && lines[i].includes('-')) { sepIdx = i; break; }
-    }
-    if (sepIdx <= 0) return null;
-    if (sepIdx + 1 >= lines.length) return null;
-    if (!lines[sepIdx - 1].startsWith('|')) return null;
+      /** Deteksi Markdown table. Return { before, tableHtml, after } atau null. */
+      function parseMarkdownTable(text) {
+        if (!text) return null;
+        const lines = text
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
+        let sepIdx = -1;
+        for (let i = 0; i < lines.length; i++) {
+          if (/^\|[\s:|-]+\|$/.test(lines[i]) && lines[i].includes("-")) {
+            sepIdx = i;
+            break;
+          }
+        }
+        if (sepIdx <= 0) return null;
+        if (sepIdx + 1 >= lines.length) return null;
+        if (!lines[sepIdx - 1].startsWith("|")) return null;
 
-    const parseRow = (line) => line.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+        const parseRow = (line) =>
+          line
+            .replace(/^\||\|$/g, "")
+            .split("|")
+            .map((c) => c.trim());
 
-    const headerCells = parseRow(lines[sepIdx - 1]);
-    const rows = [];
-    for (let i = sepIdx + 1; i < lines.length; i++) {
-      if (!lines[i].startsWith('|')) break;
-      rows.push(parseRow(lines[i]));
-    }
-    if (rows.length === 0) return null;
+        const headerCells = parseRow(lines[sepIdx - 1]);
+        const rows = [];
+        for (let i = sepIdx + 1; i < lines.length; i++) {
+          if (!lines[i].startsWith("|")) break;
+          rows.push(parseRow(lines[i]));
+        }
+        if (rows.length === 0) return null;
 
-    // Teks sebelum tabel (judul, dll)
-    const beforeLines = lines.slice(0, sepIdx - 1);
-    // Teks setelah tabel (footer, catatan)
-    let afterStart = sepIdx + 1 + rows.length;
-    const afterLines = lines.slice(afterStart);
+        // Teks sebelum tabel (judul, dll)
+        const beforeLines = lines.slice(0, sepIdx - 1);
+        // Teks setelah tabel (footer, catatan)
+        let afterStart = sepIdx + 1 + rows.length;
+        const afterLines = lines.slice(afterStart);
 
-    const esc = escapeHtml;
-    const renderCell = (val) => {
-      const parts = String(val).split(/<br\s*\/?>/i);
-      return parts.map(p => esc(p.trim())).join('<br style="display:block;margin:2px 0">');
-    };
+        const esc = escapeHtml;
+        const renderCell = (val) => {
+          const parts = String(val).split(/<br\s*\/?>/i);
+          return parts
+            .map((p) => esc(p.trim()))
+            .join('<br style="display:block;margin:2px 0">');
+        };
 
-    let tableHtml = `<table class="result-table"><thead><tr>`;
-    headerCells.forEach(h => { tableHtml += `<th>${renderCell(h)}</th>`; });
-    tableHtml += `</tr></thead><tbody>`;
-    rows.forEach(r => {
-      tableHtml += `<tr>`;
-      headerCells.forEach((_, i) => {
-        tableHtml += `<td>${renderCell(r[i] ?? '')}</td>`;
+        let tableHtml = `<table class="result-table"><thead><tr>`;
+        headerCells.forEach((h) => {
+          tableHtml += `<th>${renderCell(h)}</th>`;
+        });
+        tableHtml += `</tr></thead><tbody>`;
+        rows.forEach((r) => {
+          tableHtml += `<tr>`;
+          headerCells.forEach((_, i) => {
+            tableHtml += `<td>${renderCell(r[i] ?? "")}</td>`;
+          });
+          tableHtml += `</tr>`;
+        });
+        tableHtml += `</tbody></table>`;
+
+        return {
+          before: beforeLines.join("\n"),
+          tableHtml,
+          after: afterLines.join("\n"),
+        };
+      }
+
+      // ─── Tombol "Unggah Baru" ───
+      newUploadBtn.addEventListener("click", () => {
+        resultsView.classList.remove("active");
+        uploadZone.classList.remove("hidden");
+        resetUpload();
       });
-      tableHtml += `</tr>`;
-    });
-    tableHtml += `</tbody></table>`;
 
-    return {
-      before: beforeLines.join('\n'),
-      tableHtml,
-      after: afterLines.join('\n'),
-    };
-  }
-
-  // ─── Tombol "Unggah Baru" ───
-  newUploadBtn.addEventListener('click', () => {
-    resultsView.classList.remove('active');
-    uploadZone.classList.remove('hidden');
-    resetUpload();
-  });
-
-  function escapeHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-</script>
-</body>
+      function escapeHtml(s) {
+        return s
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+    </script>
+  </body>
 </html>

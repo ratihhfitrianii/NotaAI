@@ -15,12 +15,12 @@ export async function preprocessImage(input: Buffer): Promise<Buffer> {
     // Langkah 1-2: grayscale + auto-contrast (normalize)
     let img = sharp(input)
       .grayscale()
-      .normalize()             // rentang 0-255 penuh
+      .normalize() // rentang 0-255 penuh
       .sharpen({ sigma: 1.2 }) // perjelas tepi huruf
       .resize({ width: Math.min(w, 2400), withoutEnlargement: true });
 
     // Langkah 3: Otsu threshold → hitam-putih bersih
-    img = img.threshold(0);    // 0 = auto (Otsu)
+    img = img.threshold(0); // 0 = auto (Otsu)
 
     return await img.png().toBuffer();
   } catch (err) {
