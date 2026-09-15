@@ -172,6 +172,14 @@
       .results-view.active {
         display: block;
       }
+      /* Hasil dibatasi dalam satu layar — scroll internal jika lebar/panjang */
+      .results-view.active #results {
+        max-height: calc(100vh - 160px);
+        overflow-y: auto;
+        padding-right: 6px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
       .upload-zone.hidden {
         display: none;
       }
@@ -187,6 +195,37 @@
         font-size: 16px;
         margin-bottom: 14px;
         color: var(--accent);
+      }
+      .result-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .result-head h3 {
+        font-size: 15px;
+        color: var(--accent);
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .download-btn {
+        background: #164e63;
+        color: #a5f3fc;
+        border: 1px solid #155e75;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        transition: background 0.15s;
+      }
+      .download-btn:hover {
+        background: #155e75;
+        color: #ecfeff;
       }
       .result-body {
         display: grid;
@@ -447,21 +486,29 @@
           }
 
           card.innerHTML = `
-        <h3>${escapeHtml(fileName)}</h3>
-        <div class="result-body">
-          <div class="result-photo">
-            ${
-              imgUrl
-                ? `<img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(fileName)}" loading="lazy">`
-                : '<span style="color:var(--muted)">Tidak ada pratinjau</span>'
-            }
-          </div>
-          <div class="result-text">
-            <div class="label">Hasil Digitalisasi — ${time}</div>
-            ${contentHtml}
-          </div>
-        </div>
-      `;
+                  <div class="result-head">
+                    <h3>${escapeHtml(fileName)}</h3>
+                    <button class="download-btn" data-fname="${escapeHtml(fileName)}" data-time="${escapeHtml(time)}">⬇ Download</button>
+                  </div>
+                  <div class="result-body">
+                    <div class="result-photo">
+                      ${
+                        imgUrl
+                          ? `<img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(fileName)}" loading="lazy">`
+                          : '<span style="color:var(--muted)">Tidak ada pratinjau</span>'
+                      }
+                    </div>
+                    <div class="result-text">
+                      <div class="label">Hasil Digitalisasi — ${time}</div>
+                      ${contentHtml}
+                    </div>
+                  </div>
+                `;
+          // Tombol download — buat file .txt dari hasil digitalisasi
+          const dlBtn = card.querySelector(".download-btn");
+          dlBtn.addEventListener("click", () => {
+            downloadResult(text, fileName);
+          });
           results.appendChild(card);
         }
       }
@@ -531,6 +578,24 @@
           tableHtml,
           after: afterLines.join("\n"),
         };
+      }
+
+      // ─── Download hasil sebagai .txt ───
+      function downloadResult(text, fileName) {
+        const base = (fileName || "hasil").replace(/\.[^.]+$/, "");
+        const stamp = new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:T]/g, "-");
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${base}-${stamp}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
 
       // ─── Tombol "Unggah Baru" ───
