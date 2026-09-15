@@ -1,8 +1,13 @@
 import { OcrAdapter } from "./types";
 import { OcrResult } from "../types";
-import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import { logger } from "../lib/logger";
+
+// @google/genai adalah ESM-only — gunakan dynamic import agar kompatibel CommonJS.
+type GoogleGenAIInstance = import("@google/genai", { with: { "resolution-mode": "import" } }).GoogleGenAI;
+async function getGenAI(): Promise<typeof import("@google/genai", { with: { "resolution-mode": "import" } })> {
+  return import("@google/genai");
+}
 
 /**
  * OCR via Google Gemini Vision — membaca tulisan tangan & cetak
@@ -16,10 +21,20 @@ import { logger } from "../lib/logger";
  */
 export class GeminiOcrAdapter implements OcrAdapter {
   readonly provider = "gemini-vision";
-  private genai: GoogleGenAI;
+  private genai: GoogleGenAIInstance;
 
   constructor(apiKey: string) {
-    this.genai = new GoogleGenAI({ apiKey });
+    // Instansiasi dilakukan async via init() karena ESM dynamic import.
+    this.apiKey = apiKey;
+    this.genai = null as unknown as GoogleGenAIInstance;
+  }
+  private apiKey: string;
+
+  async init(): Promise<void> {
+    if (!this.genai) {
+      const mod = await getGenAI();
+      this.genai = new mod.GoogleGenAI({ apiKey: this.apiKey });
+    }
   }
 
   async recognize(input: {
@@ -39,6 +54,8 @@ export class GeminiOcrAdapter implements OcrAdapter {
     }
 
     try {
+      await this.init();
+
       // Deteksi mime type dari nama file
       const ext = (input.imageFileName ?? "").toLowerCase();
       let mimeType = "image/jpeg";
